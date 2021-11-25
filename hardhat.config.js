@@ -21,7 +21,11 @@ module.exports = {
   solidity: "0.8.0",
   networks: {
     rinkeby: {
-      url: process.env.STAGING_ALCHEMY_KEY,
+      url: process.env.STAGING_ALCHEMY_KEY_RINKEBY,
+      accounts: [process.env.PRIVATE_KEY],
+    },
+    kovan: {
+      url: process.env.STAGING_ALCHEMY_KEY_KOVAN,
       accounts: [process.env.PRIVATE_KEY],
     },
   },
