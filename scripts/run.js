@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const main = async () => {
   const gameContractFactory = await hre.ethers.getContractFactory("MyEpicGame");
   const gameContract = await gameContractFactory.deploy(
