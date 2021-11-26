@@ -8,13 +8,15 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
+import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
+
 // Helper we wrote to encode in Base64
 import "./libraries/Base64.sol";
 
 import "hardhat/console.sol";
 
 // Our contract inherits from ERC721, which is the standard NFT contract!
-contract MyEpicGame is ERC721 {
+contract MyEpicGame is ERC721, VRFConsumerBase {
     struct CharacterAttributes {
         uint256 characterIndex;
         string name;
@@ -55,6 +57,11 @@ contract MyEpicGame is ERC721 {
     // to store the owner of the NFT and reference it later.
     mapping(address => uint256) public nftHolders;
 
+    // Chainlink variables
+    bytes32 internal keyHash;
+    uint256 internal fee;
+    uint256 public randomResult;
+
     event CharacterNFTMinted(
         address sender,
         uint256 tokenId,
@@ -76,8 +83,20 @@ contract MyEpicGame is ERC721 {
         // Below, you can also see I added some special identifier symbols for our NFT.
         // This is the name and symbol for our token, ex Ethereum and ETH. I just call mine
         // Heroes and HERO. Remember, an NFT is just a token!
-        ERC721("Don't Hug Me I'm Scared", "DHMIS")
+
+        ERC721("jelkfjlseo3o49u3roiw3", "woir3")
+        // Chainlink constructor hardcoded to Rinkeby
+        VRFConsumerBase(
+            0xb3dCcb4Cf7a26f6cf6B120Cf5A73875B7BBc655B,
+            0x01BE23585060835E02B77ef475b0Cc51aA1e0709
+        )
     {
+        // ERC721("Don't Hug Me I'm Scared", "DHMIS") Replace for production
+
+        //Chainlink variables hardcoded for Rinkeby
+        keyHash = 0x2ed0feb3e7fd2022120aa84fab1945545a9f2ffc9076fd6156fa96eaff4c1311;
+        fee = 0.1 * 10**18; //0.1 Link;
+
         // Initialize the boss. Save it to our global "bigBoss" state variable.
         bigBoss = BigBoss({
             name: bossName,
@@ -210,16 +229,22 @@ contract MyEpicGame is ERC721 {
         return output;
     }
 
-    function attackBoss() public {
+    function attackBoss(uint256 _randomNumber) public {
         // Get the state of the player's NFT.
         uint256 nftTokenIdOfPlayer = nftHolders[msg.sender];
         CharacterAttributes storage player = nftHolderAttributes[
             nftTokenIdOfPlayer
         ];
-        uint8 randomNumber = uint8(
-            uint256(
-                keccak256(abi.encodePacked(block.timestamp, block.difficulty))
-            ) % 100
+        // uint8 randomNumber = uint8(
+        //     uint256(
+        //         keccak256(abi.encodePacked(block.timestamp, block.difficulty))
+        //     ) % 100
+        // );
+        uint256 randomNumber = (_randomNumber % 100) + 1;
+        console.log(
+            "The player's critical chance is %s and the random number returned was %s",
+            player.criticalChance,
+            randomNumber
         );
         uint256 criticalHit = randomNumber < player.criticalChance ? 2 : 1;
         console.log(
@@ -281,6 +306,30 @@ contract MyEpicGame is ERC721 {
         }
     }
 
+    /**
+     * Requests randomness
+     */
+    function getRandomNumber() public returns (bytes32 requestId) {
+        require(
+            LINK.balanceOf(address(this)) >= fee,
+            "Not enough LINK - fill contract with faucet"
+        );
+        return requestRandomness(keyHash, fee);
+    }
+
+    /**
+     * Callback function used by VRF Coordinator
+     */
+    function fulfillRandomness(bytes32 requestId, uint256 randomness)
+        internal
+        override
+    {
+        randomResult = randomness;
+        // console.log("random result is %s", randomResult);
+        // attackBoss(randomness);
+    }
+
+    // Get functions
     function getAllDefaultCharacters()
         public
         view
