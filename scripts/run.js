@@ -9,8 +9,10 @@ const main = async () => {
       "QmRuY78mZDvk29BWqjRHMN6DoaNiAFUHLFUJD78VVx37Ux",
       "QmcgLpWYojqwcNXqvHtqyTxV1br5W4vQ2gSoFXJUMn3Xed",
     ],
-    [100, 250, 300], // HP values
+    [75, 200, 300], // HP values
+    [125, 100, 50], // Max additional HP from random number
     [150, 100, 70], // Attack damage values
+    [75, 100, 75], // Max additional Attack Damage from random number
     [20, 25, 45], //Critical Hit Chance
     "Roy", // Boss name
     "QmaisduSWDEx5rBJA9Qb7R7mo6nDVSfTB1AwzFV2tT1dTV", // Boss image

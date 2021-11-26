@@ -22,8 +22,10 @@ contract MyEpicGame is ERC721, VRFConsumerBase {
         string name;
         string imageURI;
         uint256 hp;
+        uint256 hpMod;
         uint256 maxHp;
         uint256 attackDamage;
+        uint256 attackDamageMod;
         uint256 criticalChance;
     }
 
@@ -42,6 +44,8 @@ contract MyEpicGame is ERC721, VRFConsumerBase {
 
     //Array of all addresses with NFT
     address[] public nftHolderAddresses;
+
+    mapping(bytes32 => address) chainlinkTransactions;
 
     struct BigBoss {
         string name;
@@ -73,7 +77,9 @@ contract MyEpicGame is ERC721, VRFConsumerBase {
         string[] memory characterNames,
         string[] memory characterImageURIs,
         uint256[] memory characterHp,
+        uint256[] memory characterHpMod,
         uint256[] memory characterAttackDmg,
+        uint256[] memory characterAttackDmgMod,
         uint256[] memory characterCriticalChance,
         string memory bossName, // These new variables would be passed in via run.js or deploy.js.
         string memory bossImageURI,
@@ -119,8 +125,10 @@ contract MyEpicGame is ERC721, VRFConsumerBase {
                     name: characterNames[i],
                     imageURI: characterImageURIs[i],
                     hp: characterHp[i],
+                    hpMod: characterHpMod[i],
                     maxHp: characterHp[i],
                     attackDamage: characterAttackDmg[i],
+                    attackDamageMod: characterAttackDmgMod[i],
                     criticalChance: characterCriticalChance[i]
                 })
             );
@@ -149,18 +157,38 @@ contract MyEpicGame is ERC721, VRFConsumerBase {
 
         // The magical function! Assigns the tokenId to the caller's wallet address.
         _safeMint(msg.sender, newItemId);
+        uint256 randomNumber = (uint256(
+            keccak256(abi.encodePacked(block.timestamp, block.difficulty))
+        ) % 100) + 1;
 
+        //Adjust character traits using random number
+        uint256 _hp = defaultCharacters[_characterIndex].hp +
+            (defaultCharacters[_characterIndex].hpMod * randomNumber) /
+            100;
+        uint256 _attackDamage = defaultCharacters[_characterIndex]
+            .attackDamage +
+            (defaultCharacters[_characterIndex].attackDamageMod *
+                randomNumber) /
+            100;
         // We map the tokenId => their character attributes. More on this in
         // the lesson below.
         nftHolderAttributes[newItemId] = CharacterAttributes({
             characterIndex: _characterIndex,
             name: defaultCharacters[_characterIndex].name,
             imageURI: defaultCharacters[_characterIndex].imageURI,
-            hp: defaultCharacters[_characterIndex].hp,
+            hp: _hp,
+            hpMod: defaultCharacters[_characterIndex].hpMod,
             maxHp: defaultCharacters[_characterIndex].maxHp,
-            attackDamage: defaultCharacters[_characterIndex].attackDamage,
+            attackDamage: _attackDamage,
+            attackDamageMod: defaultCharacters[_characterIndex].attackDamageMod,
             criticalChance: defaultCharacters[_characterIndex].criticalChance
         });
+        console.log(
+            "hp mod: %s, attack mod: %s, random number %s",
+            nftHolderAttributes[newItemId].hpMod,
+            nftHolderAttributes[newItemId].attackDamageMod,
+            randomNumber
+        );
 
         nftHolderAddresses.push(msg.sender);
 
@@ -229,18 +257,17 @@ contract MyEpicGame is ERC721, VRFConsumerBase {
         return output;
     }
 
-    function attackBoss(uint256 _randomNumber) public {
+    function attackBoss() public {
         // Get the state of the player's NFT.
         uint256 nftTokenIdOfPlayer = nftHolders[msg.sender];
         CharacterAttributes storage player = nftHolderAttributes[
             nftTokenIdOfPlayer
         ];
-        // uint8 randomNumber = uint8(
-        //     uint256(
-        //         keccak256(abi.encodePacked(block.timestamp, block.difficulty))
-        //     ) % 100
-        // );
-        uint256 randomNumber = (_randomNumber % 100) + 1;
+        uint256 randomNumber = (uint256(
+            keccak256(abi.encodePacked(block.timestamp, block.difficulty))
+        ) % 100) + 1;
+
+        // uint256 randomNumber = (_randomNumber % 100) + 1;
         console.log(
             "The player's critical chance is %s and the random number returned was %s",
             player.criticalChance,
@@ -324,9 +351,7 @@ contract MyEpicGame is ERC721, VRFConsumerBase {
         internal
         override
     {
-        randomResult = randomness;
-        // console.log("random result is %s", randomResult);
-        // attackBoss(randomness);
+        // attackBoss(_atkAddress, randomness);
     }
 
     // Get functions
