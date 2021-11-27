@@ -24,7 +24,7 @@ const main = async () => {
 
   let txn;
 
-  txn = await gameContract.mintCharacterNFT(2);
+  txn = await gameContract.getRandomNumber(2);
   await txn.wait();
 
   console.log("NFT 1 Minted");

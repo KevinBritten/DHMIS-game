@@ -45,7 +45,11 @@ contract MyEpicGame is ERC721, VRFConsumerBase {
     //Array of all addresses with NFT
     address[] public nftHolderAddresses;
 
-    mapping(bytes32 => address) chainlinkTransactions;
+    struct ChainlinkTransaction {
+        address txnSender;
+        uint256 characterIndex;
+    }
+    mapping(bytes32 => ChainlinkTransaction) internal chainlinkTransactions;
 
     struct BigBoss {
         string name;
@@ -151,15 +155,22 @@ contract MyEpicGame is ERC721, VRFConsumerBase {
 
     // Users would be able to hit this function and get their NFT based on the
     // characterId they send in!
-    function mintCharacterNFT(uint256 _characterIndex) external {
+    function mintCharacterNFT(
+        address _txnSender,
+        uint256 _characterIndex,
+        uint256 _randomness
+    ) external {
         // Get current tokenId (starts at 1 since we incremented in the constructor).
         uint256 newItemId = _tokenIds.current();
 
         // The magical function! Assigns the tokenId to the caller's wallet address.
-        _safeMint(msg.sender, newItemId);
-        uint256 randomNumber = (uint256(
-            keccak256(abi.encodePacked(block.timestamp, block.difficulty))
-        ) % 100) + 1;
+        // _safeMint(msg.sender, newItemId);
+        _safeMint(_txnSender, newItemId);
+
+        // uint256 randomNumber = (uint256(
+        //     keccak256(abi.encodePacked(block.timestamp, block.difficulty))
+        // ) % 100) + 1;
+        uint256 randomNumber = _randomness % 100;
 
         //Adjust character traits using random number
         uint256 _hp = defaultCharacters[_characterIndex].hp +
@@ -184,13 +195,13 @@ contract MyEpicGame is ERC721, VRFConsumerBase {
             criticalChance: defaultCharacters[_characterIndex].criticalChance
         });
         console.log(
-            "hp mod: %s, attack mod: %s, random number %s",
+            "hp mod: %s, attack mod: %s, random number is %s",
             nftHolderAttributes[newItemId].hpMod,
             nftHolderAttributes[newItemId].attackDamageMod,
             randomNumber
         );
 
-        nftHolderAddresses.push(msg.sender);
+        nftHolderAddresses.push(_txnSender);
 
         console.log(
             "Minted NFT w/ tokenId %s and characterIndex %s",
@@ -199,12 +210,12 @@ contract MyEpicGame is ERC721, VRFConsumerBase {
         );
 
         // Keep an easy way to see who owns what NFT.
-        nftHolders[msg.sender] = newItemId;
+        nftHolders[_txnSender] = newItemId;
 
         // Increment the tokenId for the next person that uses it.
         _tokenIds.increment();
 
-        emit CharacterNFTMinted(msg.sender, newItemId, _characterIndex);
+        emit CharacterNFTMinted(_txnSender, newItemId, _characterIndex);
     }
 
     function tokenURI(uint256 _tokenId)
@@ -336,12 +347,20 @@ contract MyEpicGame is ERC721, VRFConsumerBase {
     /**
      * Requests randomness
      */
-    function getRandomNumber() public returns (bytes32 requestId) {
+    function getRandomNumber(uint256 _characterIndex) public {
         require(
             LINK.balanceOf(address(this)) >= fee,
             "Not enough LINK - fill contract with faucet"
         );
-        return requestRandomness(keyHash, fee);
+        ChainlinkTransaction
+            memory _chainlinkTransaction = ChainlinkTransaction({
+                txnSender: msg.sender,
+                characterIndex: _characterIndex
+            });
+
+        chainlinkTransactions[
+            requestRandomness(keyHash, fee)
+        ] = _chainlinkTransaction;
     }
 
     /**
@@ -351,7 +370,11 @@ contract MyEpicGame is ERC721, VRFConsumerBase {
         internal
         override
     {
-        // attackBoss(_atkAddress, randomness);
+        this.mintCharacterNFT(
+            chainlinkTransactions[requestId].txnSender,
+            chainlinkTransactions[requestId].characterIndex,
+            randomness
+        );
     }
 
     // Get functions
